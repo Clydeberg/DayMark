@@ -17,9 +17,7 @@ export function getDb() {
     adapter: new PrismaPg({ connectionString }),
   });
 
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = client;
-  }
+  globalForPrisma.prisma = client;
 
   return client;
 }

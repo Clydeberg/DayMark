@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { editableBy, viewableBy } from "@/lib/permissions";
 import { getCurrentUserId } from "@/lib/session";
 import { updateItemSchema } from "@/lib/validations/item";
 
@@ -14,7 +13,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   const { id } = await context.params;
   const item = await getDb().calendarItem.findFirst({
-    where: { id, ...viewableBy(userId) },
+    where: { id, ownerId: userId },
     include: {
       owner: { select: peopleSelect },
       assignee: { select: peopleSelect },
@@ -31,7 +30,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const { id } = await context.params;
   const current = await getDb().calendarItem.findFirst({
-    where: { id, ...editableBy(userId) },
+    where: { id, ownerId: userId },
   });
   if (!current) return NextResponse.json({ error: "Item not found" }, { status: 404 });
 
@@ -41,16 +40,6 @@ export async function PATCH(request: Request, context: RouteContext) {
       { error: "Please check the form fields", issues: parsed.error.flatten() },
       { status: 400 },
     );
-  }
-
-  if (parsed.data.assigneeId) {
-    const assignee = await getDb().user.findUnique({
-      where: { id: parsed.data.assigneeId },
-      select: { id: true },
-    });
-    if (!assignee) {
-      return NextResponse.json({ error: "Assignee was not found" }, { status: 400 });
-    }
   }
 
   const startAt = parsed.data.startAt ? new Date(parsed.data.startAt) : current.startAt;
@@ -74,8 +63,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       ...parsed.data,
       description:
         parsed.data.description === undefined ? undefined : parsed.data.description || null,
-      assigneeId:
-        parsed.data.assigneeId === undefined ? undefined : parsed.data.assigneeId || null,
+      assigneeId: userId,
       startAt: parsed.data.startAt ? startAt : undefined,
       endAt: parsed.data.endAt === undefined ? undefined : endAt,
     },

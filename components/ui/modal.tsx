@@ -33,7 +33,7 @@ export function Modal({ open, title, description, children, onClose, wide }: Mod
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <section className={`max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-2xl sm:p-7 ${wide ? "max-w-2xl" : "max-w-md"}`}>
+      <section className={`app-surface max-h-[92vh] w-full overflow-y-auto rounded-t-3xl border p-5 shadow-2xl sm:rounded-2xl sm:p-7 ${wide ? "max-w-2xl" : "max-w-md"}`}>
         <div className="mb-5 flex items-start justify-between gap-5">
           <div>
             <h2 id="modal-title" className="text-xl font-bold tracking-tight text-slate-950">{title}</h2>

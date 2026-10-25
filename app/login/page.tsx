@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/login-form";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { authOptions } from "@/lib/auth";
 
 export default async function LoginPage() {
@@ -9,7 +10,8 @@ export default async function LoginPage() {
 
   return (
     <main className="grid min-h-screen place-items-center px-5 py-10">
-      <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_24px_80px_rgba(20,33,61,0.10)]">
+      <div className="fixed right-5 top-5"><ThemeToggle /></div>
+      <section className="app-surface w-full max-w-md rounded-3xl border p-8 shadow-[0_24px_80px_rgba(20,33,61,0.10)]">
         <div className="grid size-12 place-items-center rounded-2xl bg-blue-600 text-xl font-black text-white">D</div>
         <p className="mt-7 text-sm font-bold uppercase tracking-[0.18em] text-blue-600">Daymark</p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">Welcome back</h1>

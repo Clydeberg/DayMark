@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { localInputToUtc, toLocalInputValue } from "@/lib/dates";
+import { FormSubmissionError } from "@/lib/form-error";
 import type { CalendarItem, ItemFormValues, Person } from "@/types/calendar";
 
 type SaveValues = Omit<ItemFormValues, "startAt" | "endAt"> & {
@@ -13,12 +14,12 @@ type SaveValues = Omit<ItemFormValues, "startAt" | "endAt"> & {
 type ItemFormProps = {
   item: CalendarItem | null;
   initialDate: string;
-  users: Person[];
+  currentUser: Person;
   onSave: (values: SaveValues) => Promise<void>;
   onCancel: () => void;
 };
 
-function defaults(item: CalendarItem | null, initialDate: string): ItemFormValues {
+function defaults(item: CalendarItem | null, initialDate: string, currentUserId: string): ItemFormValues {
   if (item) {
     return {
       title: item.title,
@@ -29,7 +30,7 @@ function defaults(item: CalendarItem | null, initialDate: string): ItemFormValue
       startAt: toLocalInputValue(item.startAt),
       endAt: item.endAt ? toLocalInputValue(item.endAt) : "",
       allDay: item.allDay,
-      assigneeId: item.assigneeId ?? "",
+      assigneeId: currentUserId,
     };
   }
 
@@ -47,23 +48,26 @@ function defaults(item: CalendarItem | null, initialDate: string): ItemFormValue
     startAt: toLocalInputValue(start),
     endAt: toLocalInputValue(end),
     allDay: false,
-    assigneeId: "",
+    assigneeId: currentUserId,
   };
 }
 
-export function ItemForm({ item, initialDate, users, onSave, onCancel }: ItemFormProps) {
+export function ItemForm({ item, initialDate, currentUser, onSave, onCancel }: ItemFormProps) {
   const [serverError, setServerError] = useState("");
   const {
+    control,
     register,
     handleSubmit,
     getValues,
     reset,
+    setError,
     formState: { errors, isSubmitting },
-  } = useForm<ItemFormValues>({ defaultValues: defaults(item, initialDate) });
+  } = useForm<ItemFormValues>({ defaultValues: defaults(item, initialDate, currentUser.id) });
+  const itemType = useWatch({ control, name: "type" });
 
   useEffect(() => {
-    reset(defaults(item, initialDate));
-  }, [item, initialDate, reset]);
+    reset(defaults(item, initialDate, currentUser.id));
+  }, [item, initialDate, currentUser.id, reset]);
 
   return (
     <form
@@ -77,19 +81,28 @@ export function ItemForm({ item, initialDate, users, onSave, onCancel }: ItemFor
             endAt: values.endAt ? localInputToUtc(values.endAt) : null,
           });
         } catch (error) {
-          setServerError(error instanceof Error ? error.message : "Could not save the item.");
+          if (error instanceof FormSubmissionError) {
+            for (const [field, messages] of Object.entries(error.fieldErrors)) {
+              const message = messages[0];
+              if (message) setError(field as keyof ItemFormValues, { type: "server", message });
+            }
+            setServerError(Object.keys(error.fieldErrors).length ? "Please correct the highlighted fields." : error.message);
+          } else {
+            setServerError(error instanceof Error ? error.message : "Could not save the item.");
+          }
         }
       })}
     >
       <label className="sm:col-span-2">
         <span className="mb-2 block text-sm font-semibold text-slate-700">Title *</span>
-        <input autoFocus {...register("title", { required: "Title is required", maxLength: 120 })} className="field" placeholder="What needs to happen?" />
+        <input autoFocus {...register("title", { required: "Title is required", maxLength: { value: 120, message: "Title must be 120 characters or fewer" } })} className="field" placeholder="What needs to happen?" />
         {errors.title ? <span className="field-error">{errors.title.message}</span> : null}
       </label>
 
       <label className="sm:col-span-2">
         <span className="mb-2 block text-sm font-semibold text-slate-700">Description</span>
-        <textarea {...register("description", { maxLength: 2000 })} rows={4} className="field min-h-28 resize-y py-3" placeholder="Add useful details, notes, or an agenda…" />
+        <textarea {...register("description", { maxLength: { value: 2000, message: "Description must be 2,000 characters or fewer" } })} rows={4} className="field min-h-28 resize-y py-3" placeholder="Add useful details, notes, or an agenda…" />
+        {errors.description ? <span className="field-error">{errors.description.message}</span> : null}
       </label>
 
       <label>
@@ -111,11 +124,9 @@ export function ItemForm({ item, initialDate, users, onSave, onCancel }: ItemFor
         </select>
       </label>
       <label>
-        <span className="mb-2 block text-sm font-semibold text-slate-700">Assignee</span>
-        <select {...register("assigneeId")} className="field">
-          <option value="">Unassigned</option>
-          {users.map((user) => <option key={user.id} value={user.id}>{user.name}</option>)}
-        </select>
+        <span className="mb-2 block text-sm font-semibold text-slate-700">Assignee *</span>
+        <input type="hidden" {...register("assigneeId")} />
+        <div className="field flex items-center" aria-label="Assignee">{currentUser.name} (me)</div>
       </label>
       <label>
         <span className="mb-2 block text-sm font-semibold text-slate-700">Starts *</span>
@@ -123,8 +134,8 @@ export function ItemForm({ item, initialDate, users, onSave, onCancel }: ItemFor
         {errors.startAt ? <span className="field-error">{errors.startAt.message}</span> : null}
       </label>
       <label>
-        <span className="mb-2 block text-sm font-semibold text-slate-700">Ends</span>
-        <input type="datetime-local" {...register("endAt", { validate: (value) => !value || !getValues("startAt") || value >= getValues("startAt") || "End must be after start" })} className="field" />
+        <span className="mb-2 block text-sm font-semibold text-slate-700">{itemType === "DEADLINE" ? "Deadline date *" : "Ends"}</span>
+        <input type="datetime-local" {...register("endAt", { validate: (value) => itemType === "DEADLINE" && !value ? "Deadline date is required" : !value || !getValues("startAt") || value >= getValues("startAt") || "End must be after start" })} className="field" />
         {errors.endAt ? <span className="field-error">{errors.endAt.message}</span> : null}
       </label>
       <label className="flex items-center gap-3 sm:col-span-2">

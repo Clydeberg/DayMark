@@ -22,6 +22,8 @@ export type CalendarItem = {
   assigneeId: string | null;
   assignee: Person | null;
   owner: Person;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ItemFormValues = {

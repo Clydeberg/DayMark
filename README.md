@@ -1,14 +1,15 @@
 # Daymark Calendar
 
-A focused calendar for managing tasks, events, meetings, and deadlines. Users can switch between Month, Week, Day, and Agenda views, filter visible items, and drag owned items to reschedule them.
+A focused private calendar for managing tasks, events, meetings, and deadlines. Users can switch between Month, Week, Day, and Agenda views, filter visible items by type, and drag their items to reschedule them.
 
 ## Features
 
 - Month, Week, Day, and Agenda views
 - Date click with two actions: create a new item or view that date's schedule
-- Create/edit form with title, description, type, status, priority, assignee, and dates
+- Account registration and credential sign-in
+- Create/edit form with title, description, type, status, priority, fixed self-assignment, and dates
 - Item details, deletion, drag-and-drop, and resize rescheduling
-- Type and assignee filters
+- Type filter
 - Visible-range-only database queries
 - UTC timestamp storage and local-time display
 - Credential authentication with hashed passwords
@@ -73,6 +74,7 @@ Open `http://localhost:3000`. The seeded demo login is `demo@example.com` / `Dem
 | `npm run lint` | Run ESLint |
 | `npm run db:generate` | Regenerate Prisma Client |
 | `npm run db:migrate -- --name <name>` | Create/apply a migration |
+| `npm run db:deploy` | Apply committed migrations in production |
 | `npm run db:seed` | Create demo users |
 
 ## Main folders
@@ -80,12 +82,13 @@ Open `http://localhost:3000`. The seeded demo login is `demo@example.com` / `Dem
 ```text
 app/
   api/auth/             Auth.js handler
+  api/register/         Account registration endpoint
   api/items/            Range query and CRUD endpoints
-  api/users/            Assignee choices
   calendar/             Protected calendar page
   login/                Login page
+  register/             Account registration page
 components/
-  auth/                 Login form
+  auth/                 Login and registration forms
   calendar/             Calendar and date interactions
   items/                Shared create/edit form
   ui/                   Small reusable modal
@@ -93,7 +96,6 @@ lib/
   auth.ts               Authentication configuration
   db.ts                 Lazy Prisma client
   dates.ts              UTC/local date helpers
-  permissions.ts        View and edit query rules
   session.ts            Current-user helper
   validations/          Zod request schemas
 prisma/
@@ -107,15 +109,15 @@ types/                  Shared application types
 `GET /api/items` requires ISO `start` and `end` values. FullCalendar supplies its current visible range, so the API does not fetch a user's complete history.
 
 ```text
-GET    /api/items?start=<UTC>&end=<UTC>&type=<optional>&assigneeId=<optional>
+GET    /api/items?start=<UTC>&end=<UTC>&type=<optional>
 POST   /api/items
 GET    /api/items/:id
 PATCH  /api/items/:id
 DELETE /api/items/:id
-GET    /api/users
+POST   /api/register
 ```
 
-The server gets the owner from the authenticated session; it never accepts an owner ID from the browser. Owners can view, edit, reschedule, and delete. Assignees and users with `VIEW` permission can view. Users with `EDIT` permission can edit and reschedule. Only owners can delete.
+The server gets both the owner and assignee from the authenticated session; it never trusts either identity from the browser. A user can only list, view, edit, reschedule, and delete items they own. Matching display names do not grant access because authorization uses the authenticated user ID.
 
 ## Time handling
 
@@ -127,7 +129,7 @@ The browser form converts local time to UTC ISO strings. PostgreSQL stores item 
 2. Import it into Vercel.
 3. Add `DATABASE_URL`, `NEXTAUTH_URL`, and `NEXTAUTH_SECRET` in Vercel.
 4. Set `NEXTAUTH_URL` to the deployed HTTPS URL.
-5. Run the production migration against the hosted database.
+5. Run `npm run db:deploy` against the hosted database.
 6. Deploy. `postinstall` generates Prisma Client automatically.
 
 ## Deliberate limitations

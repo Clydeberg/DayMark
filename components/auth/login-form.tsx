@@ -1,6 +1,7 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
@@ -40,6 +41,7 @@ export function LoginForm() {
       </label>
       {error ? <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
       <button type="submit" disabled={loading} className="button-primary h-12 w-full">{loading ? "Signing in…" : "Sign in"}</button>
+      <p className="text-center text-sm text-slate-500">New to Daymark? <Link href="/register" className="font-bold text-blue-600 hover:underline">Create an account</Link></p>
     </form>
   );
 }

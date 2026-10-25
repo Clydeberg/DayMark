@@ -6,10 +6,10 @@ export async function GET() {
   const userId = await getCurrentUserId();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const users = await getDb().user.findMany({
+  const user = await getDb().user.findUnique({
+    where: { id: userId },
     select: { id: true, name: true, email: true },
-    orderBy: { name: "asc" },
   });
 
-  return NextResponse.json(users);
+  return NextResponse.json(user ? [user] : []);
 }

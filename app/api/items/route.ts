@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
-import { viewableBy } from "@/lib/permissions";
 import { getCurrentUserId } from "@/lib/session";
 import { createItemSchema, itemRangeSchema } from "@/lib/validations/item";
 
@@ -15,7 +14,6 @@ export async function GET(request: Request) {
     start: url.searchParams.get("start"),
     end: url.searchParams.get("end"),
     type: url.searchParams.get("type") || undefined,
-    assigneeId: url.searchParams.get("assigneeId") || undefined,
   });
 
   if (!parsed.success) {
@@ -31,18 +29,14 @@ export async function GET(request: Request) {
   const items = await getDb().calendarItem.findMany({
     where: {
       AND: [
-        viewableBy(userId),
+        { ownerId: userId },
         {
           OR: [
             { endAt: null, startAt: { gte: rangeStart, lt: rangeEnd } },
-            {
-              endAt: { not: null, gt: rangeStart },
-              startAt: { lt: rangeEnd },
-            },
+            { endAt: { not: null, gte: rangeStart }, startAt: { lt: rangeEnd } },
           ],
         },
         parsed.data.type ? { type: parsed.data.type } : {},
-        parsed.data.assigneeId ? { assigneeId: parsed.data.assigneeId } : {},
       ],
     },
     include: {
@@ -67,21 +61,11 @@ export async function POST(request: Request) {
     );
   }
 
-  if (parsed.data.assigneeId) {
-    const assignee = await getDb().user.findUnique({
-      where: { id: parsed.data.assigneeId },
-      select: { id: true },
-    });
-    if (!assignee) {
-      return NextResponse.json({ error: "Assignee was not found" }, { status: 400 });
-    }
-  }
-
   const item = await getDb().calendarItem.create({
     data: {
       ...parsed.data,
       description: parsed.data.description || null,
-      assigneeId: parsed.data.assigneeId || null,
+      assigneeId: userId,
       startAt: new Date(parsed.data.startAt),
       endAt: parsed.data.endAt ? new Date(parsed.data.endAt) : null,
       ownerId: userId,
